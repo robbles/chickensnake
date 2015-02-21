@@ -28,6 +28,8 @@ def index():
 
 @app.route('/start', methods=['POST'])
 def start():
+    app.logger.debug('\nSTART: %s', g.data)
+
     return jsonify({
         'name': SNAKE_NAME,
         'color': '#ffffff',
@@ -42,8 +44,8 @@ def move():
     turn, board, snakes, food = g.data['turn'], g.data['board'], g.data['snakes'], g.data['food']
     width, height = data.dimensions(board)
 
-    app.logger.debug('\nTURN: %s\nBOARD: %s\nSNAKES: %s\nFOOD: %s\n',
-        turn, board, snakes, food)
+    app.logger.debug('\nTURN: %s\nBOARD: %dX%d\nSNAKES: %s\nFOOD: %s\n',
+        turn, width, height, snakes, food)
 
     strategy = strategies.choose_strategy(name, turn, board, snakes, food)
     direction, taunt = strategy.get_action()

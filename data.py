@@ -19,6 +19,15 @@ def get_snake(snakes, name):
         if snake['name'] == name:
             return snake
 
+def safe_directions(board, pos, allowed_tiles=[EMPTY, FOOD]):
+    good = []
+    for d in DIRECTIONS:
+        safe, contents = check_square(board, pos, d, allowed_tiles)
+        if safe:
+            good.append((d, contents))
+
+    return good
+
 def check_square(board, pos, direction, allowed_tiles=[EMPTY, FOOD]):
     x = pos[0]
     y = pos[1]

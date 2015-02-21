@@ -3,6 +3,7 @@ import random
 import data
 import log
 
+
 def choose_strategy(name, turn, board, snakes, food):
     return RandomStrategy(name, turn, board, snakes, food)
 
@@ -17,9 +18,11 @@ class BaseStrategy(object):
 
         self.me = data.get_snake(snakes, name)
         self.head = self.me['coords'][0]
+        self.health = 100 - (turn - self.me.get('last_eaten', 0))
 
         self.log('Snake: %s', self.me)
         self.log('Current head position: %s', self.head)
+        self.log('Health: %d', self.health)
 
     def log(self, msg, *args):
         name = self.__class__.__name__
@@ -32,14 +35,13 @@ class BaseStrategy(object):
 
 class RandomStrategy(BaseStrategy):
     def get_action(self):
-        directions = random.sample(data.DIRECTIONS, len(data.DIRECTIONS))
+        safe = data.safe_directions(self.board, self.head)
 
-        for direction in directions:
-            self.log('Checking direction %s', log.blue(direction))
-            safe, contents = data.check_square(self.board, self.head, direction)
+        if not safe:
+            # we're fucked
+            return data.UP, 'goodbye, cruel world'
 
-            if safe:
-                return direction, None
+        direction, contents = random.choice(safe)
+        self.log('choosing %s randomly', direction)
 
-        # we're fucked
-        return data.UP, 'goodbye, cruel world'
+        return direction, 'mmmmm' if contents == data.FOOD else None
