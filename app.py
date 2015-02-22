@@ -9,7 +9,7 @@ import data
 import log
 
 SNAKE_NAME = os.getenv('SNAKE_NAME', 'Sample Snake ' + str(random.random()))
-SNAKE_HEAD = 'chicken.jpg'
+SNAKE_HEAD = os.getenv('SNAKE_HEAD', 'chicken.jpg')
 
 app = Flask(__name__)
 app.logger.handlers[0].setFormatter(log.LogFormatter())
@@ -31,10 +31,15 @@ def start():
     g.data = request.get_json(force=True)
     app.logger.debug('\nSTART: %s', g.data)
 
+    if SNAKE_HEAD.startswith('http'):
+        head_url = SNAKE_HEAD
+    else:
+        head_url = url_for('static', filename=SNAKE_HEAD, _external=True)
+
     return jsonify({
         'name': SNAKE_NAME,
         'color': '#ffffff',
-        'head_url': url_for('static', filename=SNAKE_HEAD, _external=True),
+        'head_url': head_url,
         'taunt': 'buk buk buk buk'
     })
 

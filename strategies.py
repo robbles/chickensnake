@@ -1,9 +1,12 @@
 from flask import current_app as app
+import os
 import random
 import data
 import log
 import taunts
 
+FORCE_STRATEGY = os.getenv('FORCE_STRATEGY', False)
+ENABLE_TAUNTS = os.getenv('TAUNTS', 'false') in ('true', 'TRUE')
 
 def choose_strategy(turn, board, snakes, food):
     me = data.get_snake(snakes)
@@ -14,7 +17,14 @@ def choose_strategy(turn, board, snakes, food):
     app.logger.debug('Current head position: %s', head)
     app.logger.debug('Health: %d', health)
 
-    if health > 40 and me.get('food_eaten', 0) == 0:
+    if FORCE_STRATEGY:
+        strategy = {
+            'RANDOM': RandomStrategy,
+            'FOOD': PreferFoodStrategy,
+            'NOFOOD': AvoidFoodStrategy,
+        }.get(FORCE_STRATEGY, RandomStrategy)
+
+    elif health > 40 and me.get('food_eaten', 0) == 0:
         # stay in the corner if we have food and haven't eaten
         strategy = CornerStrategy
     else:
@@ -98,6 +108,9 @@ class BaseStrategy(object):
         return safe, contents
 
     def get_taunt(self):
+        if not ENABLE_TAUNTS:
+            return
+
         for snake in self.snakes:
             pos = snake['coords'][0]
             if pos == self.position:
