@@ -1,39 +1,38 @@
 #!/usr/bin/env python
 
-from flask import Flask, g, request, jsonify
+from flask import Flask, g, request, jsonify, url_for
 
 import strategies
 import data
 import log
 
 SNAKE_NAME = 'Sample Snake'
+SNAKE_HEAD = 'chicken.jpg'
 
 app = Flask(__name__)
 app.logger.handlers[0].setFormatter(log.LogFormatter())
 
-@app.before_request
-def debug_request():
-    g.data = request.get_json(force=True)
-
 @app.after_request
 def debug_response(response):
-    app.logger.debug('\nRESPONSE: %s', response.data)
+    if response.content_type == 'application/json':
+        app.logger.debug('\nRESPONSE: %s', response.data)
     return response
 
 
 @app.route('/')
-def index():
+def base():
     return "nothing to see here, move along"
 
 
 @app.route('/start', methods=['POST'])
 def start():
+    g.data = request.get_json(force=True)
     app.logger.debug('\nSTART: %s', g.data)
 
     return jsonify({
         'name': SNAKE_NAME,
         'color': '#ffffff',
-        'head_url': 'https://www.pretio.in/static/img/favicon.ico',
+        'head_url': url_for('static', filename=SNAKE_HEAD, _external=True),
         'taunt': 'buk buk buk buk'
     })
 
@@ -41,6 +40,7 @@ def start():
 @app.route('/move', methods=['POST'])
 def move():
     name = 'Sample Snake'
+    g.data = request.get_json(force=True)
     turn, board, snakes, food = g.data['turn'], g.data['board'], g.data['snakes'], g.data['food']
     width, height = data.dimensions(board)
 
