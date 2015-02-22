@@ -2,6 +2,7 @@ from flask import current_app as app
 import random
 import data
 import log
+import taunts
 
 
 def choose_strategy(turn, board, snakes, food):
@@ -96,6 +97,19 @@ class BaseStrategy(object):
 
         return safe, contents
 
+    def get_taunt(self):
+        for snake in self.snakes:
+            pos = snake['coords'][0]
+            if pos == self.position:
+                continue
+            taunt = snake['taunt']
+            if taunt in taunts.TAUNTS:
+                return taunts.TAUNTS[taunt]
+
+        if random.randint(0, 15) == 0:
+            return random.choice(taunts.TAUNTS.keys())
+
+        return None
 
 
 class RandomStrategy(BaseStrategy):
@@ -109,7 +123,7 @@ class RandomStrategy(BaseStrategy):
         direction, contents = random.choice(safe)
         self.log('choosing %s randomly', direction)
 
-        return direction, 'mmmmm' if contents == data.FOOD else None
+        return direction
 
 
 class PreferFoodStrategy(BaseStrategy):
@@ -121,7 +135,7 @@ class PreferFoodStrategy(BaseStrategy):
 
         for direction, contents in safe:
             if contents == data.FOOD:
-                return direction, 'mmm'
+                return direction
 
         direction, contents = random.choice(safe)
 

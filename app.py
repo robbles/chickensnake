@@ -55,6 +55,12 @@ def move():
     else:
         direction, taunt = result, None
 
+    if taunt is None:
+        try:
+            taunt = strategy.get_taunt()
+        except:
+            pass
+
     # move, taunt
     return jsonify({
         'move': direction,
