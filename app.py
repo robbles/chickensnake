@@ -49,7 +49,11 @@ def move():
         turn, width, height, snakes, food)
 
     strategy = strategies.choose_strategy(turn, board, snakes, food)
-    direction, taunt = strategy.get_action()
+    result = strategy.get_action()
+    if isinstance(result, tuple):
+        direction, taunt = result
+    else:
+        direction, taunt = result, None
 
     # move, taunt
     return jsonify({

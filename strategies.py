@@ -1,11 +1,11 @@
-from flask import current_app as app, url_for
+from flask import current_app as app
 import random
 import data
 import log
 
 
 def choose_strategy(turn, board, snakes, food):
-    me = get_snake(snakes)
+    me = data.get_snake(snakes)
     head = me['coords'][0]
     health = 100 - (turn - me.get('last_eaten', 0))
 
@@ -13,15 +13,12 @@ def choose_strategy(turn, board, snakes, food):
     app.logger.debug('Current head position: %s', head)
     app.logger.debug('Health: %d', health)
 
-    return RandomStrategy(turn, head, health, board, snakes, food)
+    if health > 40 and me.get('food_eaten', 0) == 0:
+        strategy = CornerStrategy
+    else:
+        strategy = PreferFoodStrategy
 
-def get_snake(snakes):
-    url = url_for('base', _external=True).rstrip('/')
-    app.logger.debug('Snake URL should be %s', url)
-
-    for snake in snakes:
-        if snake['url'].rstrip('/') == url:
-            return snake
+    return strategy(turn, head, health, board, snakes, food)
 
 
 class BaseStrategy(object):
@@ -107,3 +104,82 @@ class RandomStrategy(BaseStrategy):
         self.log('choosing %s randomly', direction)
 
         return direction, 'mmmmm' if contents == data.FOOD else None
+
+
+class PreferFoodStrategy(BaseStrategy):
+    def get_action(self):
+        safe = self.safe_directions()
+
+        if not safe:
+            return data.UP, 'goodbye, cruel world'
+
+        for direction, contents in safe:
+            if contents == data.FOOD:
+                return direction, 'mmm'
+
+        direction, contents = random.choice(safe)
+
+        return direction
+
+
+class CornerStrategy(BaseStrategy):
+    def get_action(self):
+        safe = self.safe_directions()
+        safe_dirs = [direction for direction, contents in safe]
+
+        if not safe:
+            return data.UP, 'goodbye, cruel world'
+
+        ncols, nrows = data.dimensions(self.board)
+        corners = (
+            (0, 0), (ncols - 1, 0), (0, nrows - 1), (ncols - 1, nrows - 1)
+        )
+
+        closest_corner = sorted(corners, key=lambda corner:
+            data.manhattan_dist(self.position, corner)
+        )[0]
+
+        x, y = self.position
+        cx, cy = closest_corner
+
+        if data.adjacent(self.position, closest_corner):
+            self.log('ADJACENT TO CORNER: %s', safe_dirs)
+
+            # stay in corner, gross logic
+            if closest_corner == corners[0]:
+                if x > cx and data.DOWN in safe_dirs:
+                    return data.DOWN
+                if y > cy and data.RIGHT in safe_dirs:
+                    return data.RIGHT
+            if closest_corner == corners[1]:
+                if x < cx and data.DOWN in safe_dirs:
+                    return data.DOWN
+                if y > cy and data.LEFT in safe_dirs:
+                    return data.LEFT
+            if closest_corner == corners[2]:
+                if x > cx and data.UP in safe_dirs:
+                    return data.UP
+                if y < cy and data.RIGHT in safe_dirs:
+                    return data.RIGHT
+            if closest_corner == corners[3]:
+                if x < cx and data.UP in safe_dirs:
+                    return data.UP
+                if y < cy and data.LEFT in safe_dirs:
+                    return data.LEFT
+
+        # move towards corner
+        for direction, contents in safe:
+            if direction == data.LEFT and cx < x:
+                return direction
+            if direction == data.RIGHT and cx > x:
+                return direction
+            if direction == data.UP and cy < y:
+                return direction
+            if direction == data.DOWN and cy > y:
+                return direction
+
+        # no idea, fuck it
+        self.log('MOVING RANDOMLY')
+        direction, contents = random.choice(safe)
+
+        return direction
