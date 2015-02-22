@@ -14,9 +14,15 @@ def choose_strategy(turn, board, snakes, food):
     app.logger.debug('Health: %d', health)
 
     if health > 40 and me.get('food_eaten', 0) == 0:
+        # stay in the corner if we have food and haven't eaten
         strategy = CornerStrategy
     else:
-        strategy = PreferFoodStrategy
+        if health > 40:
+            # don't collect food unless you absolutely have to
+            strategy = AvoidFoodStrategy
+        else:
+            # prefer food when low on health
+            strategy = PreferFoodStrategy
 
     return strategy(turn, head, health, board, snakes, food)
 
@@ -117,6 +123,25 @@ class PreferFoodStrategy(BaseStrategy):
             if contents == data.FOOD:
                 return direction, 'mmm'
 
+        direction, contents = random.choice(safe)
+
+        return direction
+
+
+class AvoidFoodStrategy(BaseStrategy):
+    def get_action(self):
+        safe = self.safe_directions()
+
+        if not safe:
+            return data.UP, 'goodbye, cruel world'
+
+        random.shuffle(safe)
+
+        for direction, contents in safe:
+            if contents != data.FOOD:
+                return direction
+
+        # only food??
         direction, contents = random.choice(safe)
 
         return direction
