@@ -14,11 +14,6 @@ BODY = 'body'
 EMPTY = 'empty'
 BOUNDARY = 'boundary'
 
-def get_snake(snakes, name):
-    for snake in snakes:
-        if snake['name'] == name:
-            return snake
-
 def safe_directions(board, pos, allowed_tiles=[EMPTY, FOOD]):
     good = []
     for d in DIRECTIONS:

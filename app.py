@@ -39,7 +39,6 @@ def start():
 
 @app.route('/move', methods=['POST'])
 def move():
-    name = 'Sample Snake'
     g.data = request.get_json(force=True)
     turn, board, snakes, food = g.data['turn'], g.data['board'], g.data['snakes'], g.data['food']
     width, height = data.dimensions(board)
@@ -47,7 +46,7 @@ def move():
     app.logger.debug('\nTURN: %s\nBOARD: %dX%d\nSNAKES: %s\nFOOD: %s\n',
         turn, width, height, snakes, food)
 
-    strategy = strategies.choose_strategy(name, turn, board, snakes, food)
+    strategy = strategies.choose_strategy(turn, board, snakes, food)
     direction, taunt = strategy.get_action()
 
     # move, taunt

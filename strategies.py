@@ -1,10 +1,10 @@
-from flask import current_app as app
+from flask import current_app as app, url_for
 import random
 import data
 
 
-def choose_strategy(name, turn, board, snakes, food):
-    me = data.get_snake(snakes, name)
+def choose_strategy(turn, board, snakes, food):
+    me = get_snake(snakes)
     head = me['coords'][0]
     health = 100 - (turn - me.get('last_eaten', 0))
 
@@ -13,6 +13,14 @@ def choose_strategy(name, turn, board, snakes, food):
     app.logger.debug('Health: %d', health)
 
     return RandomStrategy(turn, head, health, board, snakes, food)
+
+def get_snake(snakes):
+    url = url_for('base', _external=True).rstrip('/')
+    app.logger.debug('Snake URL should be %s', url)
+
+    for snake in snakes:
+        if snake['url'].rstrip('/') == url:
+            return snake
 
 
 class BaseStrategy(object):
