@@ -1,6 +1,7 @@
 from flask import current_app as app, url_for
 import random
 import data
+import log
 
 
 def choose_strategy(turn, board, snakes, food):
@@ -29,7 +30,9 @@ class BaseStrategy(object):
         self.position = position
         self.health = health
         self.board = board
-        self.snakes = snakes
+        self.snakes = [
+            s for s in snakes if s['coords'][0] != self.position
+        ]
         self.food = food
 
     def log(self, msg, *args):
@@ -40,10 +43,61 @@ class BaseStrategy(object):
         """ return (direction, taunt | None) """
         return data.UP, None
 
+    def safe_directions(self, allowed_tiles=[data.EMPTY, data.FOOD]):
+        good = []
+        for d in data.DIRECTIONS:
+            safe, contents = self.check_square(d, allowed_tiles)
+            if safe:
+                good.append((d, contents))
+
+        return good
+
+    def check_square(self, direction, allowed_tiles=[data.EMPTY, data.FOOD]):
+        pos = self.position
+        x = pos[0]
+        y = pos[1]
+        ncols, nrows = data.dimensions(self.board)
+
+        if direction == data.UP:
+            y -= 1
+        elif direction == data.DOWN:
+            y += 1
+        elif direction == data.LEFT:
+            x -= 1
+        else:
+            x += 1
+
+        safe, contents = True, data.EMPTY
+
+        # check the boundaries
+        if (x >= ncols or x < 0) or (y >= nrows or y < 0):
+            # out of boundaries
+            return False, data.BOUNDARY
+
+        # check for invalid tile according to allowed_tiles
+        tile = self.board[x][y]
+        contents = tile['state']
+
+        if contents not in allowed_tiles:
+            safe = False
+
+        for other_snake in self.snakes:
+            other_snake_pos = other_snake['coords'][0]
+            if data.adjacent(other_snake_pos, (x, y)):
+                safe = False
+                contents = data.COLLISION
+                self.log('Avoiding collision!')
+
+        self.log('%s, contains %s',
+            log.green('safe') if safe else log.red('unsafe'), contents)
+
+        return safe, contents
+
+
 
 class RandomStrategy(BaseStrategy):
     def get_action(self):
-        safe = data.safe_directions(self.board, self.position)
+        safe = self.safe_directions()
 
         if not safe:
             # we're fucked

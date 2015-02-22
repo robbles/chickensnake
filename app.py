@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 
 from flask import Flask, g, request, jsonify, url_for
+import os
+import random
 
 import strategies
 import data
 import log
 
-SNAKE_NAME = 'Sample Snake'
+SNAKE_NAME = os.getenv('SNAKE_NAME', 'Sample Snake ' + str(random.random()))
 SNAKE_HEAD = 'chicken.jpg'
 
 app = Flask(__name__)
@@ -62,4 +64,4 @@ def end():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, port=int(os.getenv('PORT', 5000)))
