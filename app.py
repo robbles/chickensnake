@@ -1,82 +1,64 @@
 #!/usr/bin/env python
 
-from flask import Flask, g, request, jsonify, url_for
+from flask import Flask, request, jsonify
 import os
-import random
 
 import strategies
 import data
-import log
+import logs
 
-SNAKE_NAME = os.getenv('SNAKE_NAME', 'Sample Snake ' + str(random.random()))
-SNAKE_HEAD = os.getenv('SNAKE_HEAD', 'chicken.jpg')
+HEAD_TYPE = os.getenv("HEAD_TYPE", "safe")
+TAIL_TYPE = os.getenv("TAIL_TYPE", "hook")
 
 app = Flask(__name__)
-app.logger.handlers[0].setFormatter(log.LogFormatter())
+app.logger.handlers[0].setFormatter(logs.LogFormatter())
+
 
 @app.after_request
 def debug_response(response):
-    if response.content_type == 'application/json':
-        app.logger.debug('\nRESPONSE: %s', response.data)
+    if response.content_type == "application/json":
+        app.logger.debug("\nRESPONSE: %s", response.data)
     return response
 
 
-@app.route('/')
+@app.route("/")
 def base():
     return "nothing to see here, move along"
 
 
-@app.route('/start', methods=['POST'])
+@app.route("/start", methods=["POST"])
 def start():
-    g.data = request.get_json(force=True)
-    app.logger.debug('\nSTART: %s', g.data)
+    request_data = request.get_json(force=True)
+    app.logger.debug("\nSTART: %s", request_data)
 
-    if SNAKE_HEAD.startswith('http'):
-        head_url = SNAKE_HEAD
-    else:
-        head_url = url_for('static', filename=SNAKE_HEAD, _external=True)
-
-    return jsonify({
-        'name': SNAKE_NAME,
-        'color': '#ffffff',
-        'head_url': head_url,
-        'taunt': 'buk buk buk buk'
-    })
+    return jsonify({"color": "#ffffff", "headType": HEAD_TYPE, "tailType": TAIL_TYPE,})
 
 
-@app.route('/move', methods=['POST'])
+@app.route("/move", methods=["POST"])
 def move():
-    g.data = request.get_json(force=True)
-    turn, board, snakes, food = g.data['turn'], g.data['board'], g.data['snakes'], g.data['food']
-    width, height = data.dimensions(board)
+    request_data = request.get_json(force=True)
+    turn_context = data.build_turn_context(request_data)
 
-    app.logger.debug('\nTURN: %s\nBOARD: %dX%d\nSNAKES: %s\nFOOD: %s\n',
-        turn, width, height, snakes, food)
+    app.logger.debug(
+        "\nTURN: %s\nBOARD: %dX%d\nSNAKES: %s\nFOOD: %s\n",
+        turn_context.turn,
+        turn_context.width,
+        turn_context.height,
+        turn_context.snakes,
+        turn_context.foods,
+    )
 
-    strategy = strategies.choose_strategy(turn, board, snakes, food)
-    result = strategy.get_action()
-    if isinstance(result, tuple):
-        direction, taunt = result
-    else:
-        direction, taunt = result, None
-
-    if taunt is None:
-        try:
-            taunt = strategy.get_taunt()
-        except:
-            pass
+    strategy = strategies.choose_strategy(turn_context)
+    direction = strategy.get_action()
 
     # move, taunt
-    return jsonify({
-        'move': direction,
-        'taunt': taunt,
-    })
+    return jsonify({"move": direction,})
 
 
-@app.route('/end', methods=['POST'])
+@app.route("/end", methods=["POST"])
 def end():
     return jsonify({})
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=int(os.getenv('PORT', 5000)))
+    app.run(debug=True, port=int(os.getenv("PORT", 5000)))

@@ -1,61 +1,54 @@
-from flask import current_app as app
 import os
 import random
+import logging
+
 import data
-import log
-import taunts
+import logs
 
-FORCE_STRATEGY = os.getenv('FORCE_STRATEGY', False)
-ENABLE_TAUNTS = os.getenv('TAUNTS', 'false') in ('true', 'TRUE')
+OPTIONS = {
+    "FORCE_STRATEGY": os.getenv("FORCE_STRATEGY", False),
+}
 
-def choose_strategy(turn, board, snakes, food):
-    me = data.get_snake(snakes)
-    head = me['coords'][0]
-    health = 100 - (turn - me.get('last_eaten', 0))
+logger = logging.getLogger(__name__)
 
-    app.logger.debug('Snake: %s', me)
-    app.logger.debug('Current head position: %s', head)
-    app.logger.debug('Health: %d', health)
 
-    if FORCE_STRATEGY:
+def choose_strategy(turn_context: data.TurnContext, options=OPTIONS):
+    logger.debug("Snake: %s", turn_context.my_snake)
+    logger.debug("Current head position: %s", turn_context.position)
+    logger.debug("Health: %d", turn_context.health)
+
+    if options["FORCE_STRATEGY"]:
+        force_strategy = options["FORCE_STRATEGY"]
         strategy = {
-            'RANDOM': RandomStrategy,
-            'FOOD': PreferFoodStrategy,
-            'NOFOOD': AvoidFoodStrategy,
-        }.get(FORCE_STRATEGY, RandomStrategy)
+            "RANDOM": RandomStrategy,
+            "FOOD": PreferFoodStrategy,
+            "NOFOOD": AvoidFoodStrategy,
+        }.get(force_strategy, RandomStrategy)
 
-    elif health > 40 and me.get('food_eaten', 0) == 0:
+    elif turn_context.health > 40 and not data.has_eaten(turn_context.my_snake):
         # stay in the corner if we have food and haven't eaten
         strategy = CornerStrategy
     else:
-        if health > 40:
+        if turn_context.health > 40:
             # don't collect food unless you absolutely have to
             strategy = AvoidFoodStrategy
         else:
             # prefer food when low on health
             strategy = PreferFoodStrategy
 
-    return strategy(turn, head, health, board, snakes, food)
+    return strategy(turn_context)
 
 
 class BaseStrategy(object):
-    def __init__(self, turn, position, health, board, snakes, food):
-        self.turn = turn
-        self.position = position
-        self.health = health
-        self.board = board
-        self.snakes = [
-            s for s in snakes if s['coords'][0] != self.position
-        ]
-        self.food = food
+    def __init__(self, turn_context):
+        self.ctx = turn_context
 
     def log(self, msg, *args):
         name = self.__class__.__name__
-        app.logger.debug(name + ': ' + msg, *args)
+        logger.debug(name + ": " + msg, *args)
 
-    def get_action(self):
-        """ return (direction, taunt | None) """
-        return data.UP, None
+    def get_action(self) -> str:
+        return data.UP
 
     def safe_directions(self, allowed_tiles=[data.EMPTY, data.FOOD]):
         good = []
@@ -67,10 +60,8 @@ class BaseStrategy(object):
         return good
 
     def check_square(self, direction, allowed_tiles=[data.EMPTY, data.FOOD]):
-        pos = self.position
-        x = pos[0]
-        y = pos[1]
-        ncols, nrows = data.dimensions(self.board)
+        x, y = self.ctx.position
+        ncols, nrows = self.ctx.width, self.ctx.height
 
         if direction == data.UP:
             y -= 1
@@ -89,40 +80,25 @@ class BaseStrategy(object):
             return False, data.BOUNDARY
 
         # check for invalid tile according to allowed_tiles
-        tile = self.board[x][y]
-        contents = tile['state']
+        contents = self.ctx.grid[x][y]
 
         if contents not in allowed_tiles:
             safe = False
 
-        for other_snake in self.snakes:
-            other_snake_pos = other_snake['coords'][0]
-            if data.adjacent(other_snake_pos, (x, y)):
+        for other_snake in self.ctx.snakes:
+            other_snake_head = other_snake[0]
+            if data.adjacent(other_snake_head, (x, y)):
                 safe = False
                 contents = data.COLLISION
-                self.log('Avoiding collision!')
+                self.log("Avoiding collision!")
 
-        self.log('%s, contains %s',
-            log.green('safe') if safe else log.red('unsafe'), contents)
+        self.log(
+            "%s, contains %s",
+            logs.green("safe") if safe else logs.red("unsafe"),
+            contents,
+        )
 
         return safe, contents
-
-    def get_taunt(self):
-        if not ENABLE_TAUNTS:
-            return
-
-        for snake in self.snakes:
-            pos = snake['coords'][0]
-            if pos == self.position:
-                continue
-            taunt = snake['taunt']
-            if taunt in taunts.TAUNTS:
-                return taunts.TAUNTS[taunt]
-
-        if random.randint(0, 15) == 0:
-            return random.choice(taunts.TAUNTS.keys())
-
-        return None
 
 
 class RandomStrategy(BaseStrategy):
@@ -130,11 +106,10 @@ class RandomStrategy(BaseStrategy):
         safe = self.safe_directions()
 
         if not safe:
-            # we're fucked
-            return data.UP, 'goodbye, cruel world'
+            return data.UP
 
         direction, contents = random.choice(safe)
-        self.log('choosing %s randomly', direction)
+        self.log("choosing %s randomly", direction)
 
         return direction
 
@@ -144,7 +119,7 @@ class PreferFoodStrategy(BaseStrategy):
         safe = self.safe_directions()
 
         if not safe:
-            return data.UP, 'goodbye, cruel world'
+            return data.UP
 
         for direction, contents in safe:
             if contents == data.FOOD:
@@ -160,7 +135,7 @@ class AvoidFoodStrategy(BaseStrategy):
         safe = self.safe_directions()
 
         if not safe:
-            return data.UP, 'goodbye, cruel world'
+            return data.UP
 
         random.shuffle(safe)
 
@@ -180,22 +155,22 @@ class CornerStrategy(BaseStrategy):
         safe_dirs = [direction for direction, contents in safe]
 
         if not safe:
-            return data.UP, 'goodbye, cruel world'
+            return data.UP
 
-        ncols, nrows = data.dimensions(self.board)
-        corners = (
-            (0, 0), (ncols - 1, 0), (0, nrows - 1), (ncols - 1, nrows - 1)
-        )
+        ncols, nrows = self.ctx.width, self.ctx.height
 
-        closest_corner = sorted(corners, key=lambda corner:
-            data.manhattan_dist(self.position, corner)
+        corners = ((0, 0), (ncols - 1, 0), (0, nrows - 1), (ncols - 1, nrows - 1))
+
+        closest_corner = sorted(
+            corners, key=lambda corner: data.manhattan_dist(self.ctx.position, corner)
         )[0]
 
-        x, y = self.position
+        position = self.ctx.position
+        x, y = position
         cx, cy = closest_corner
 
-        if data.adjacent(self.position, closest_corner):
-            self.log('ADJACENT TO CORNER: %s', safe_dirs)
+        if data.adjacent(position, closest_corner):
+            self.log("ADJACENT TO CORNER: %s", safe_dirs)
 
             # stay in corner, gross logic
             if closest_corner == corners[0]:
@@ -231,7 +206,7 @@ class CornerStrategy(BaseStrategy):
                 return direction
 
         # no idea, fuck it
-        self.log('MOVING RANDOMLY')
+        self.log("MOVING RANDOMLY")
         direction, contents = random.choice(safe)
 
         return direction

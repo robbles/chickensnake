@@ -9,6 +9,7 @@ def magenta(text): return color_text(text, 'MAGENTA')
 def cyan(text): return color_text(text, 'CYAN')
 def white(text): return color_text(text, 'WHITE')
 
+
 COLORS = (
     'BLACK', 'RED', 'GREEN', 'YELLOW',
     'BLUE', 'MAGENTA', 'CYAN', 'WHITE'
