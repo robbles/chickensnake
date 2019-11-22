@@ -52,7 +52,6 @@ def move():
     strategy = strategies.choose_strategy(turn_context)
     direction = strategy.get_action()
 
-    # move, taunt
     return jsonify({"move": direction,})
 
 
@@ -62,4 +61,4 @@ def end():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=int(os.getenv("PORT", 5000)))
+    app.run(debug=True, port=int(os.getenv("PORT", 8000)))
