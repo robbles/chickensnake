@@ -83,9 +83,8 @@ class LogFormatter(logging.Formatter):
             indent_length = len(un_color_text(s))
             message = message.replace("\n", "\n" + " " * indent_length)
 
-        exc_info = getattr(r, "exc_info")
-        if exc_info:
-            exc_type, exc, traceback = exc_info
-            message = message + " : " + repr(exc)
+        if r.exc_info:
+            exc_text = self.formatException(r.exc_info)
+            message = message + " : " + exc_text
 
         return s + message
