@@ -10,6 +10,7 @@ import logging
 
 HEAD_TYPE = os.getenv("HEAD_TYPE", "safe")
 TAIL_TYPE = os.getenv("TAIL_TYPE", "hook")
+COLOR = os.getenv("COLOR", "#A0522D")
 
 app = Flask(__name__)
 app.logger.handlers[0].setFormatter(logs.LogFormatter())
@@ -33,7 +34,7 @@ def start():
     request_data = request.get_json(force=True)
     app.logger.debug("START: %s", request_data)
 
-    return jsonify({"color": "#ffffff", "headType": HEAD_TYPE, "tailType": TAIL_TYPE,})
+    return jsonify({"color": COLOR, "headType": HEAD_TYPE, "tailType": TAIL_TYPE,})
 
 
 @app.route("/move", methods=["POST"])
