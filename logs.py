@@ -1,39 +1,44 @@
 import logging
+import os
 import re
+
+LOG_COLOR = os.getenv("LOG_COLOR", "").lower() in ("yes", "true", "1")
 
 
 def red(text):
-    return color_text(text, "RED")
+    return color_text(text, "RED") if LOG_COLOR else text
 
 
 def green(text):
-    return color_text(text, "GREEN")
+    return color_text(text, "GREEN") if LOG_COLOR else text
 
 
 def yellow(text):
-    return color_text(text, "YELLOW")
+    return color_text(text, "YELLOW") if LOG_COLOR else text
 
 
 def blue(text):
-    return color_text(text, "BLUE")
+    return color_text(text, "BLUE") if LOG_COLOR else text
 
 
 def magenta(text):
-    return color_text(text, "MAGENTA")
+    return color_text(text, "MAGENTA") if LOG_COLOR else text
 
 
 def cyan(text):
-    return color_text(text, "CYAN")
+    return color_text(text, "CYAN") if LOG_COLOR else text
 
 
 def white(text):
-    return color_text(text, "WHITE")
+    return color_text(text, "WHITE") if LOG_COLOR else text
 
 
 COLORS = ("BLACK", "RED", "GREEN", "YELLOW", "BLUE", "MAGENTA", "CYAN", "WHITE")
 
 
 def color_text(text, color_name, bold=False):
+    if not LOG_COLOR:
+        return text
     if color_name in COLORS:
         return "\033[{0};{1}m{2}\033[0m".format(
             int(bold), COLORS.index(color_name.upper()) + 30, text
